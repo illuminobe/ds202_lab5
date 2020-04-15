@@ -1,6 +1,6 @@
 ---
 title: 'Lab #5'
-author: "Kobe Pranivong; illuminobe"
+author: "Kobe Pranivong; illuminobe Yi Hang Khor; bobbykhor"
 date: "4/15/2020"
 output: html_document
 ---
