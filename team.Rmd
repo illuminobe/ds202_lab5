@@ -27,7 +27,7 @@ table(accident$DAY_WEEK)
 ggplot(accident, aes(x = DAY_WEEK, label = TRUE)) + geom_bar() + ylab("Total Number of Accidents") + ggtitle("Total Number of Accidents on Each Day of the Week") + scale_x_discrete(name ="Day of the Week", limits=1:7)
 ```
 
-The last day of the week (day 7/Saturday) has the greatest number of accidents. In general, weekeneds (day 1, 6, and 7/Friday, Saturday, and Sunday) experience more accidents than weekdays.
+The last day of the week (day 7/Saturday) has the greatest number of accidents. In general, weekends (day 1, 6, and 7/Friday, Saturday, and Sunday) experience more accidents than weekdays.
 
 2. What time of the day do accidents happen (use variable HOUR)?
 ```{r}
