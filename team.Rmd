@@ -1,6 +1,6 @@
 ---
 title: 'Lab #5'
-author: "Kobe Pranivong; illuminobe"
+author: "Kobe Pranivong; Yi Hang Khor"
 date: "4/15/2020"
 output: html_document
 ---
@@ -8,91 +8,102 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
-library("dplyr")
-library("tidyr")
-library("tidyverse")
-library("ggplot2")
-library("readxl")
+library(lubridate)
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(readxl)
 ```
 
 ```{r}
 accident <- read.csv("https://raw.githubusercontent.com/xdaiISU/ds202materials/master/hwlabs/fars2017/accident.csv", stringsAsFactors = FALSE)
-names(accident)
 person <- read.csv("https://raw.githubusercontent.com/xdaiISU/ds202materials/master/hwlabs/fars2017/person.csv", stringsAsFactors = FALSE)
-names(person)
+table(accident$DAY_WEEK)
 ```
 
+### Part 1
 1. Are there some days of the week where more accidents happen than on others (use variable DAY_WEEK)?
 ```{r}
-ggplot(accident, aes(x=DAY_WEEK)) + geom_bar() + scale_x_discrete(name ="Day of the week", 
-                    limits=1:7)
+ggplot(accident, aes(x = DAY_WEEK, label = TRUE)) + geom_bar() + ylab("Total Number of Accidents") + ggtitle("Total Number of Accidents on Each Day of the Week") + scale_x_discrete(name ="Day of the Week", limits=1:7)
 ```
 
-The last day of the week (day 7) has the greatest number of accidents. In general, the last days of the week (day 6 and 7) experience more accidents than on others.
+The last day of the week (day 7/Saturday) has the greatest number of accidents. In general, weekeneds (day 1, 6, and 7/Friday, Saturday, and Sunday) experience more accidents than weekdays.
 
 2. What time of the day do accidents happen (use variable HOUR)?
 ```{r}
-ggplot(accident, aes(x=factor(HOUR))) + geom_bar() + xlim(c(0, 23)) + scale_x_discrete(name ="Time of day (hours)", limits=1:23)
+accident %>%
+  filter(HOUR < 24) %>%
+  ggplot(mapping = aes(x = factor(as.factor(paste(HOUR,":00",sep = "")), levels = c("0:00","1:00","2:00","3:00","4:00","5:00","6:00","7:00","8:00","9:00","10:00","11:00","12:00","13:00","14:00","15:00","16:00","17:00","18:00","19:00","20:00","21:00","22:00","23:00")))) + geom_bar() + xlab("Hour of Day (24-hour clock)") + ylab("Total Number of Accidents") + ggtitle("Total Number of Accidents Based on Time of Day") + theme(axis.text.x = element_text(angle = 90, vjust = .4))
 ```
 
-Most accidents tend to occur later in the day between 17 hours and 21 hours.
+Most accidents tend to occur later in the day between 15 hours and 22 hours, also known as 3:00pm - 10:00pm. 
 
 3. What is the number of accidents with at least one drunk driver (use variable DRUNK_DR)?
 ```{r}
-drunk_count <- accident %>% count(DRUNK_DR > 0)
-#drunk_count <- accident %>% filter(DRUNK_DR > 0) %>% summarise(n = n())
+drunk_count <- accident %>%
+  count(DRUNK_DR > 0)
 drunk_count
 ```
 
 8769 accidents had at least one drunk driver.
 
+### Part 2
 4. In the person table, identify drivers (PER_TYP == 1, see FARS manual) and subset on them.
 ```{r}
-driver <- person %>% filter(PER_TYP == 1)
+driver <- person %>%
+  filter(PER_TYP == 1)
 ```
 
 5. Join accident and person table (work out which variable(s) to use)
 ```{r}
-data <- inner_join(driver, accident, by="ST_CASE")
+data <- accident %>%
+  full_join(driver, by = c('STATE', 'ST_CASE', 'COUNTY', 'DAY', 'MONTH', 'HOUR', 'MINUTE'))
 ```
 
 6. Tally the number of accidents by day of the week (DAY_WEEK), hour of the day (HOUR) and gender (SEX). Visualize the results.
 ```{r}
-data1 <- data %>% select(DAY_WEEK, HOUR.x, SEX) %>%
-  filter(DAY_WEEK >= 1 & DAY_WEEK <= 7) %>% 
-  filter(HOUR.x >= 0 & HOUR.x <= 23) %>% 
-  filter(SEX == 1 | SEX == 2) %>% 
-  group_by_all() %>% tally()
-data1.1 <- data1 %>% filter(SEX == 1)
-data1.2 <- data1 %>% filter(SEX == 2)
-ggplot(data1.1, aes(x=factor(DAY_WEEK), y=factor(HOUR.x))) + 
-  geom_raster(aes(fill = n), hjust=0.5, vjust=0.5, interpolate=FALSE) + 
-  scale_fill_gradientn(colours=c("#FFFFFFFF","#0000FFFF")) +
-  scale_x_discrete(name ="Day of the week", limits=1:7) + 
-  scale_y_discrete(name ="Time of day (hours)", limits=1:23) +
-  labs(title = "Time distribution of accidents (male)")
-ggplot(data1.2, aes(x=factor(DAY_WEEK), y=factor(HOUR.x))) + 
-  geom_raster(aes(fill = n), hjust=0.5, vjust=0.5, interpolate=FALSE) + 
-  scale_fill_gradientn(colours=c("#FFFFFFFF","#FF0000FF")) +
-  scale_x_discrete(name ="Day of the week", limits=1:7) + 
-  scale_y_discrete(name ="Time of day (hours)", limits=1:23) +
-  labs(title = "Time distribution of accidents (female)")
+data$SEX <- factor(data$SEX, labels = c("Male","Female", "Not Reported", "Unknown"))
+data %>%
+  filter(SEX == 'Male' | SEX == 'Female') %>%
+  filter(HOUR <= 24) %>%
+  ggplot(aes(x = factor(as.factor(paste(HOUR,":00",sep = "")), levels =  c("0:00","1:00","2:00","3:00","4:00","5:00","6:00","7:00","8:00","9:00","10:00","11:00","12:00","13:00","14:00","15:00","16:00","17:00","18:00","19:00","20:00","21:00","22:00","23:00")), fill = wday(DAY_WEEK, label = TRUE))) + geom_bar() + facet_wrap(~SEX) + xlab("Hour of Day") + ylab("Number of accidents") + ggtitle("Accidents by Day of Week, Hour, and Sex") + theme(axis.text.x = element_text(angle = 90, vjust = .4)) + scale_x_discrete(breaks=c("0:00","2:00","4:00","6:00","8:00","10:00","12:00","14:00","16:00","18:00","20:00","22:00"))
 ```
 
+### Part 3
 7. Now plot a choropleth map of accidents on a county level
-```{r}
-
-```
 
 Read the description for the STATE and COUNTY columns in the FARS manual. The state & county codes are Geographic Locator Codes (GLCs) from the General Services Administration’s (GSA) publication
 Use readxl::read_xlsx to read in the GLCs
+```{r, warning = FALSE}
+US_GLC <- readxl::read_xlsx('FRPP_GLC_UnitedStatesFeb132020.xlsx')
+county <- ggplot2::map_data("county")
+```
 
 8. Visualize the number of accidents in each county using a choropleth map. To do this, you need to join the accident data, GLCs, and appropriate map data.
 ```{r}
-
+US_GLC2 <- US_GLC %>%
+  mutate(`State Code` = as.integer(`State Code`), `County Code` = as.integer(`County Code`), `City Code` = as.integer(`City Code`)) %>%
+  inner_join(data, c(`County Code` = 'COUNTY', `State Code` = 'STATE', `City Code` = 'CITY'))
+ggplot(county, mapping=aes(x = long, y = lat)) + geom_polygon(mapping = aes(group = group, fill = )) + geom_point(US_GLC2, mapping = aes(x = LONGITUD, y = LATITUDE), color = 'red', alpha = .2, size = .02) + xlim(c(-130, -60)) + ylim(c(20,50)) + xlab('Longitutde') + ylab('Latitude') + ggtitle('Accidents by County')
 ```
 
 9. Can you find seasonal trends in accident occurrences in different states? Is summer or winter more dangerous? Why?
 ```{r}
-
+US_GLC2 %>%
+  filter(MONTH == 6 | MONTH == 7 | MONTH == 8) %>% 
+  filter(WEATHER < 98) %>%
+  group_by(`State Name`, WEATHER, MONTH) %>%
+  summarise(n = n()) %>%
+  ggplot(acc, mapping = aes(x=`State Name`, y=n, fill = WEATHER)) + geom_col() + coord_flip() + xlab('STATE') + ylab('NUMBER OF ACCIDENTS') + ggtitle("Accidents by State during the Summer Season")
 ```
+
+```{r}
+US_GLC2 %>%
+  filter(MONTH == 12 | MONTH == 1 | MONTH == 2) %>% 
+  filter(WEATHER < 98) %>%
+  group_by(`State Name`, WEATHER, MONTH) %>%
+  summarise(n = n()) %>%
+  ggplot(acc, mapping = aes(x=`State Name`, y=n, fill = WEATHER)) + geom_col() + coord_flip() + xlab('STATE') + ylab('NUMBER OF ACCIDENTS') + ggtitle("Accidents by State during the Winter Season")
+```
+
+Winter is more dangerous.
